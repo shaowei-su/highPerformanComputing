@@ -1,0 +1,31 @@
+#!/usr/staff/bin/perl
+
+if ($ARGV[0] eq "-h" || $ARGV[0] eq "-H")
+{
+    print "\n   ipc_clean\n\n";
+    print "   This script will remove all the user's active shared\n";
+    print "   memory segments.\n\n";
+    
+    exit(1);
+}
+
+@res = `ipcs -mc`;
+
+foreach (@res) {
+
+    ($type, $id, $key, $mode, $owner) = split;
+
+    if ($owner eq $ENV{'USER'}) {
+
+        print "Removing shm $id...\n";
+        `ipcrm -m $id`;
+        if ($? == 0) {
+            print "   SUCCESS\n";
+        } 
+        else {
+            print "   FAILURE\n";
+        }
+    }
+}
+
+exit 0;

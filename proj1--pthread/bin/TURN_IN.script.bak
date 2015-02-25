@@ -1,0 +1,80 @@
+#! /bin/sh
+#
+# script to turn in a CS258 assignment
+# takes a single argument: the name of the directory whose files
+# should be made available to the TA
+#
+# the following lines have to be customized for troi vs. CS machines:
+#project_title=project1
+targetd=/u/cs458/project/upload/${USER}_$$
+grp=none
+ownr=cs458
+
+if test $# -ne 1 ; then
+    echo "This script takes a single argument: the name of the directory"
+    echo "whose files should be made available to the TA."
+    echo "To specify the current directory, use '.'"
+    exit 1
+fi
+sourced=$1
+if test ! -d $sourced ; then
+    echo "$sourced is not a directory"
+    exit 1
+fi
+cd $sourced
+# test for a few common mistakes
+#if test ! -r Makefile ; then
+#    echo "can't read $sourced/Makefile"
+#    exit 1
+#fi
+#for sourcefile in `make sources` ; do
+#    if test ! -r $sourcefile ; then
+#        echo "can't read $sourced/$sourcefile"
+#        exit 1
+#    fi
+#done
+
+echo "mkdir ..."
+mkdir $targetd
+chgrp -f $grp $targetd
+chmod 777 $targetd
+trap "/bin/rm -r -f $targetd ; exit 1" 1 2 3 15
+for file in `du -a | sed -e "s/^.*	\.\/*//" | sort` ; do
+    # that produces a recursive list of all files
+    # the sort should guarantee that directories come before their contents
+    case $file in
+        *,v)
+            ;;
+        *.o)
+            ;;
+        tags)
+            ;;
+        *)
+            if test -d $file ; then
+                echo "mkdir .../$file"
+                mkdir $targetd/$file
+                chgrp -f $grp $targetd/$file
+                chmod 777 $targetd/$file
+            else
+                # an interesting file
+                echo $file
+                cp ./$file $targetd/$file
+                chgrp -f $grp $targetd/$file
+                if test -x ./$file ; then
+                    chmod 777 $targetd/$file
+                else
+                    chmod 666 $targetd/$file
+                fi
+            fi
+    esac
+done
+chgrp -f -R $grp $targetd
+#chown -f -R $ownr $targetd
+echo " "
+echo "TURN_IN has completed successfully.A log of files submitted"
+echo "has been sent to your mailbox."
+cd $targetd
+ls -R | mail -c cs458 -s "Project submission confirmation" ${USER}
+cd -
+exit 0
+

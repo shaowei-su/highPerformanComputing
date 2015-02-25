@@ -1,0 +1,8 @@
+#!/usr/bin/sh
+
+echo "sor-nz -m4096 -n2048 -i400" > sor-nz.seq.out
+for i in 1 2
+do
+sleep 3
+./sor -m4096 -n2048 -i400 >> sor-nz.seq.out
+done

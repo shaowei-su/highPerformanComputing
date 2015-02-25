@@ -1,0 +1,220 @@
+*******************************************************
+**     Readme for CS458 Parallel Computing Tools     **
+**                                                   **
+**Author: Xipeng Shen               Date: Mar 18 2004**
+**Minor additions made by: Virendra J. Marathe       **
+**Update by: Xiao Zhang		    Date: Jan 24 2007**
+*******************************************************
+
+Introduction
+==============
+There are several parallel computing tools available: MPI, Pthreads, Cilk, 
+UPC, ...
+"Before you start" shows how to set environment variables
+and machine name files. You should read it before you use any of these tools.
+The second part lists the directory list. The third part lists the
+names of various machines.  The last part shows how to compile and run
+programs on the supported machines. If the machine is not listed, then it
+is not supported.
+
+
+Before You Start
+=================
+1.MPI
+You need set environment variables by adding the following lines to
+your ``.cshrc'' file (which is located in your home directory) and
+then source your shell by "source .cshrc":
+   
+   # if your target machines are cluster (e.g node17-node32, node33-node64)
+setenv MPI_HOME /u/kshen/install/mpich-1.2.6-install
+
+   # if your target machine is node4x2a
+if( `hostname` ==  "node4x2a.cs.rochester.edu" ) then
+   setenv MPI_HOME /u/cs458/mpich-1.2.7-node4x2a
+endif
+   # if your target machine is discovery
+if ( `hostname` == "discovery.cs.rochester.edu" ) then
+   setenv MPI_HOME /u/cs458/mpich-1.2.7-discovery
+endif
+   # if your target machine is sync
+if ( `hostname` == "sync.cs.rochester.edu" )  then
+   setenv MPI_HOME /u/cs458/mpich-1.2.7-sync
+endif
+   # if your target machine is niagara1
+if ( `hostname` == "niagara1.cs.rochester.edu" ) then
+   setenv MPI_HOME /u/xiao/mpich-1.2.7-niagara1
+endif
+  
+ 
+   if ( "$?LD_LIBRARY_PATH" ) then
+     setenv LD_LIBRARY_PATH ${MPI_HOME}/lib:${LD_LIBRARY_PATH}
+   else
+     setenv LD_LIBRARY_PATH ${MPI_HOME}/lib
+   endif
+   setenv PATH ${MPI_HOME}/bin:${PATH}
+
+You also need to create a ``hosts'' file that contains the names of 
+machines where your want to run your parallel application followed 
+by a colon and the number of available processors on that machine. 
+For example, your ``hosts'' files may look like this:
+		node1.cs.rochester.edu:2
+		node2.cs.rochester.edu:2
+Place the ``hosts'' file in the directory where you plan on executing 
+your program.
+
+2.Cilk and UPC
+Parallel programming languages Cilk and gcc-upc are installed under
+/u/cs458/cilk  and  /u/cs458/upc respectively. You may want to append 
+to your $PATH and $LD_LIBRARY_PATH the lib/ and /bin for them:
+   # set cilk
+   setenv CILK_HOME /u/cs458/cilk
+   setenv PATH ${CILK_HOME}/bin:${PATH}
+   setenv LD_LIBRARY_PATH ${CILK_HOME}/lib:${LD_LIBRARY_PATH}
+
+   # set upc
+   setenv UPC_HOME /u/cs458/upc
+   setenv PATH ${UPC_HOME}/bin:${PATH}
+   setenv LD_LIBRARY_PATH ${UPC_HOME}/lib:${LD_LIBRARY_PATH}
+
+
+Directory List
+===============
+~cs458/apps/sor/mpi/: the MPI version of "sor".
+~cs458/apps/sor/pthreads/: the Pthread version of "sor".
+~cs458/test_cilk/: the cilk version of "fib".
+~cs458/test_mpi/: the MPI version of matrix multiply.
+~cs458/test_upc/: the UPC version of hello world.
+
+Copies are also provided in ~cs258 dir for undergrad network access.
+
+
+Machine List
+==============
+i686 Linux 2-way SMP cluster:
+      node16, ..., node32
+      node33, ..., node64
+Please refer http://www.cs.rochester.edu/twiki/bin/view/Main/ClusterJobs for
+running job on cluster node33-node64. DONT VIOLATE node usage policy. 
+
+IBM AIX 32-way SMP:
+      discovery
+
+Sunfire machines
+      sync(8 procs)
+      niagara1(8 cores, 4threads/core)	
+
+Linux 4-way machine each with 2 multithreaded cores (for a total of 16 threads)
+	node4x2a
+
+How to Compile and Execute
+===========================
+In the following examples, I use SOR running on 2 processors as my model 
+program and run configuration. However, the same applies to other applications
+as well.
+
+* MPI:
+	Your target machine(s) must be specified in your machinefile!
+
+	* To compile on cluster
+	"make".
+		You are recommended to compile it on node17-32. 
+	
+	  To run, go to the subdirectory containing the executable and type
+                ``mpirun -np 2 -machinefile hosts linux/sor''.
+	  NOTE: If your target cluster is node33-node64, you are required to 
+	  follow node usage rules:
+          http://www.cs.rochester.edu/twiki/bin/view/Main/ClusterJobs
+	  Here I show you steps how to run mpi on node64:
+	  1. Configure your ssh such that you can ssh login without passwd;
+          2. ssh log into your target nodes at least once to complete the 
+	  ssh authentication(tedious work, you have to type at least N times
+	  "yes"). 
+	  3. Using the fully-qualified domain name to ssh login node64(node64.
+	  cs.rochester.edu instead of just node64). All your program output 
+          will be "scp" back to "node64.cs.rochester.edu".
+	  4. Log into node64 and go to your mpi directory. You first reserve 
+	  some nodes through qsub and then record nodes' name to your hosts file.
+	  Finally, launch your mpi program as usual. You can write a script to do
+	  it and here I provide a sample mpi.sh: 
+		#!/bin/bash
+		cnt=0
+		#set your machinefile
+		cat $PBS_NODEFILE > your_mpi_dir/cluster_nodes
+
+		#count how many nodes you reserve
+		for i in `cat $PBS_NODEFILE` ; do
+  		cnt=$[$cnt+1]
+		done
+		echo $cnt
+
+		#run mpi on these nodes
+		ssh $i "mpirun -np $cnt -machinefile your_mpi_dir/cluster_nodes i
+		your_mpi_dir/linux/sor; sleep 10"
+		# wait for ssh'ed jobs to finish before releasing node	
+	   
+	  Now, with such script, running on N nodes is simplified to type: 
+		"qsub -S /bin/bash -l nodes=N your_mpi_dir/mpi.sh"
+          And your result is output to mpi.sh.oxxx file.
+ 
+
+ 
+	* To compile on Linux node4x2a
+    	``gmake''.
+	
+	  To run, go to the subdirectory containing the executable and type
+		``mpirun -np 2 -machinefile hosts linux/sor''.
+
+	* To compile on IBM AIX, simple type
+    	``gmake -f Makefile.aix''.
+
+	  To run, type 
+		``mpirun -np 2 -machinefile hosts aix/sor''.
+
+	* To compile on Sunfire, simple type
+	"make -f Makefile.sunos"
+
+	  To run, type
+		"mpirun -np 2 -machinefile hosts sunos/sor". 
+
+* Pthread:
+  * To compile on Linux or IBM simply type
+    	``gmake''.
+
+    To run, type 
+		``sor -p2''.
+
+  * To compile on Sunfire, type
+    ``gmake -f Makefile.sunos''.
+
+    To run, type
+		``sor -p2''.
+
+Following examples fib.cilk and hello.upc can be found under test_cilki/ and test_upc/. 
+
+* Cilk
+	* To compile on Linux type
+	"gmake".
+	      
+		When compiling for Linux, you have to compile it on node0(gcc2.96), after 
+		which you can run the executable on any of the SMPs.
+	
+	To run, go to the subdirectory containing the executable and type 
+		"./fib --nproc 2 30"
+	It calculates the 30th fibonacci by 2 proc.
+
+* UPC 
+	* To compile on Linux type
+	"gmake".
+
+		When compiling for Linux, you have to compile/run on machines with gcc4.0 
+		or higher. Take a look at -fupc-threads option of Makefile.
+
+	To run, go to the subdirectory containing the executable and type
+		"./hello" 
+
+
+How to turnin your project
+===========================
+Go to your project directory and type:
+/u/cs458/bin/turnin .
+You will receive an email confirmation.

@@ -1,0 +1,12 @@
+#!/bin/csh
+
+echo $1
+
+if ($#argv != 1) then
+    echo "Error: improper number of arguments"
+    echo "proper usage:  turnin <dir_name>"
+else if ( ! -d $1) then
+    echo "Error: '$1' is not a directory."
+else
+    python /u/cs258/bin/turn_in.py $1
+endif
